@@ -487,3 +487,7 @@ artifacts/
 # Logs and local tool settings
 *.log
 .claude/settings.local.json
+# Project notes and plans stay local; only the README screenshots are published
+docs/*
+!docs/screenshots/
+
