@@ -1,0 +1,123 @@
+<UserControl x:Class="Mithu.App.Controls.CompanionFaceControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="72" Height="58"
+             Focusable="False"
+             AutomationProperties.Name="Mithu">
+
+    <!--
+        Mithu's face, drawn entirely with WPF vectors on a fixed 72x58 design canvas.
+        A Viewbox scales it crisply to any size or DPI.
+        Animations only touch transforms / opacity / one shared accent colour, never the visual tree.
+    -->
+    <UserControl.Resources>
+        <!-- One shared accent colour for every feature of the face. -->
+        <SolidColorBrush x:Key="FaceAccent" Color="#2DF3F3" />
+    </UserControl.Resources>
+
+    <Viewbox Stretch="Uniform">
+        <Grid Width="72" Height="58" RenderTransformOrigin="0.5,0.6">
+            <!-- PunchScale: click squash. TiltRotate: angry head tilt. BounceTransform: celebrating. BreatheScale: asleep. -->
+            <Grid.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform x:Name="BreatheScale" />
+                    <ScaleTransform x:Name="PunchScale" />
+                    <RotateTransform x:Name="TiltRotate" />
+                    <TranslateTransform x:Name="BounceTransform" />
+                </TransformGroup>
+            </Grid.RenderTransform>
+
+            <!-- Face plate: a slightly darker shape on the island; a thin rim when border lines are on (ShowRim). -->
+            <Border x:Name="Plate" CornerRadius="26" Background="{StaticResource MidnightBrush}"
+                    BorderBrush="{StaticResource ElevatedBrush}" BorderThickness="0" />
+
+            <Canvas Width="72" Height="58">
+                <!-- Eyes group: shared glance translate. -->
+                <Canvas x:Name="Eyes">
+                    <Canvas.RenderTransform>
+                        <TranslateTransform x:Name="GlanceTransform" />
+                    </Canvas.RenderTransform>
+
+                    <!-- Each eye is 12x16 centered on its own point; blink scales Y around center. -->
+                    <Ellipse x:Name="LeftEye" Canvas.Left="18" Canvas.Top="15" Width="12" Height="16"
+                             Fill="{StaticResource FaceAccent}" RenderTransformOrigin="0.5,0.5">
+                        <Ellipse.RenderTransform>
+                            <ScaleTransform x:Name="LeftEyeScale" />
+                        </Ellipse.RenderTransform>
+                        <!-- Upper lid: lowered while focused (the eye's top is cut flat). -->
+                        <Ellipse.Clip>
+                            <RectangleGeometry x:Name="LeftLid" Rect="0,0,12,16" />
+                        </Ellipse.Clip>
+                    </Ellipse>
+                    <Ellipse x:Name="RightEye" Canvas.Left="42" Canvas.Top="15" Width="12" Height="16"
+                             Fill="{StaticResource FaceAccent}" RenderTransformOrigin="0.5,0.5">
+                        <Ellipse.RenderTransform>
+                            <ScaleTransform x:Name="RightEyeScale" />
+                        </Ellipse.RenderTransform>
+                        <Ellipse.Clip>
+                            <RectangleGeometry x:Name="RightLid" Rect="0,0,12,16" />
+                        </Ellipse.Clip>
+                    </Ellipse>
+
+                    <!-- Happy "^ ^" eye arcs. -->
+                    <Path x:Name="HappyEyes" Opacity="0" Stroke="{StaticResource FaceAccent}" StrokeThickness="3"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                          Data="M 18,25 Q 24,16 30,25 M 42,25 Q 48,16 54,25" />
+
+                    <!-- Asleep: eyes gently closed, lids curving down. -->
+                    <Path x:Name="SleepyEyes" Opacity="0" Stroke="{StaticResource FaceAccent}" StrokeThickness="2.6"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                          Data="M 19,25 Q 24,29.5 29,25 M 43,25 Q 48,29.5 53,25" />
+
+                    <!-- Hurt "> <" eyes squeezed shut. -->
+                    <Path x:Name="SqueezedEyes" Opacity="0" Stroke="{StaticResource FaceAccent}" StrokeThickness="3"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                          Data="M 19,17 L 29,23 L 19,29 M 53,17 L 43,23 L 53,29" />
+
+                    <!-- Concerned brows (gently worried). -->
+                    <Path x:Name="Brows" Opacity="0" Stroke="{StaticResource FaceAccent}" StrokeThickness="2"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                          Data="M 17,12 L 29,9 M 43,9 L 55,12" />
+
+                    <!-- Annoyed brows: soft curves sloping down to the middle; they settle down into place. -->
+                    <Path x:Name="AngryBrows" Opacity="0" Stroke="{StaticResource FaceAccent}" StrokeThickness="2.4"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                          Data="M 17.5,13 Q 24,13.5 30,17.5 M 54.5,13 Q 48,13.5 42,17.5">
+                        <Path.RenderTransform>
+                            <TranslateTransform x:Name="AngryBrowsShift" Y="-3" />
+                        </Path.RenderTransform>
+                    </Path>
+                </Canvas>
+
+                <!-- Asleep: two little "z"s drifting up and fading, one after the other. -->
+                <Canvas x:Name="Zzz" Opacity="0">
+                    <Path x:Name="ZSmall" Canvas.Left="50" Canvas.Top="13" Stroke="{StaticResource FaceAccent}" StrokeThickness="1.3"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                          Data="M 0,0 L 3.6,0 L 0,3.6 L 3.6,3.6">
+                        <Path.RenderTransform>
+                            <TranslateTransform x:Name="ZSmallShift" />
+                        </Path.RenderTransform>
+                    </Path>
+                    <Path x:Name="ZBig" Canvas.Left="55" Canvas.Top="6" Stroke="{StaticResource FaceAccent}" StrokeThickness="1.5"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                          Data="M 0,0 L 5,0 L 0,5 L 5,5">
+                        <Path.RenderTransform>
+                            <TranslateTransform x:Name="ZBigShift" />
+                        </Path.RenderTransform>
+                    </Path>
+                </Canvas>
+
+                <!-- Thinking: a little trail of thought dots rising to the top right, pulsing one after another. -->
+                <Canvas x:Name="ThoughtDots" Opacity="0">
+                    <Ellipse x:Name="Dot1" Canvas.Left="48.5" Canvas.Top="10.5" Width="2.2" Height="2.2" Fill="{StaticResource FaceAccent}" />
+                    <Ellipse x:Name="Dot2" Canvas.Left="52" Canvas.Top="7.6" Width="2.8" Height="2.8" Fill="{StaticResource FaceAccent}" />
+                    <Ellipse x:Name="Dot3" Canvas.Left="55.8" Canvas.Top="4.6" Width="3.4" Height="3.4" Fill="{StaticResource FaceAccent}" />
+                </Canvas>
+
+                <!-- Mouth: geometry swapped per mood (frozen geometries from code-behind). -->
+                <Path x:Name="Mouth" Stroke="{StaticResource FaceAccent}" StrokeThickness="2.5"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+            </Canvas>
+        </Grid>
+    </Viewbox>
+</UserControl>

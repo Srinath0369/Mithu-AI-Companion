@@ -1,0 +1,8 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:themes="clr-namespace:Mithu.App.Themes">
+
+    <!-- Segoe UI Variable Text (text) and Display (titles, big numbers): see AppFonts. -->
+    <x:Static x:Key="UiFont" Member="themes:AppFonts.Ui" />
+    <x:Static x:Key="DisplayFont" Member="themes:AppFonts.Display" />
+</ResourceDictionary>

@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Mithu.App/Mithu.App.csproj" />
+    <Project Path="src/Mithu.Core/Mithu.Core.csproj" />
+    <Project Path="src/Mithu.Infrastructure/Mithu.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Mithu.Tests/Mithu.Tests.csproj" />
+  </Folder>
+</Solution>

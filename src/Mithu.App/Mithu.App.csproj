@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mithu.Core\Mithu.Core.csproj" />
+    <ProjectReference Include="..\Mithu.Infrastructure\Mithu.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Mithu.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="H.NotifyIcon.Wpf" Version="2.4.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
+    <PackageReference Include="Velopack" Version="1.2.161" />
+    <PackageReference Include="Vortice.Direct2D1" Version="3.8.3" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>$(MithuWindowsTfm)</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Mithu</AssemblyName>
+    <RootNamespace>Mithu.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\..\assets\Mithu.ico</ApplicationIcon>
+    <!-- Program.Main runs Velopack's install/uninstall hooks before the WPF app starts. -->
+    <StartupObject>Mithu.App.Program</StartupObject>
+    <!--
+      Measured (docs/perf.md): background tier-up recompilation caused idle CPU spikes of up to ~4.7 % of a core
+      for several minutes. Disabling it gives steady ~0.2 % idle and ~15 % less memory for ~100 ms slower start.
+      ReadyToRun publishing in Phase 4 recovers the startup time.
+    -->
+    <TieredCompilation>false</TieredCompilation>
+    <!-- Mithu's text is English only: leave out the framework's translated resources (13 folders). -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <!--
+    Publishing (scripts/package.ps1) precompiles with ReadyToRun for a fast start. These two are left as plain IL:
+    precompiled they're 2-3x bigger (WinRT projection 53 MB, Anthropic SDK 20 MB) and they're only touched later
+    (notifications, a Claude chat), where the JIT compiles just the few methods used.
+  -->
+  <!-- The update address, built in by scripts/package.ps1 -UpdateUrl (none: updates stay off). -->
+  <ItemGroup Condition="'$(MithuUpdateUrl)' != ''">
+    <AssemblyMetadata Include="MithuUpdateUrl" Value="$(MithuUpdateUrl)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PublishReadyToRunExclude Include="Microsoft.Windows.SDK.NET.dll;Anthropic.dll" />
+  </ItemGroup>
+
+</Project>

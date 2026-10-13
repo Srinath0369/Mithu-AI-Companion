@@ -1,0 +1,285 @@
+<Window x:Class="Mithu.App.Views.FloatingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="clr-namespace:Mithu.App.Controls"
+        xmlns:vm="clr-namespace:Mithu.App.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+        Title="Mithu"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="True"
+        UseLayoutRounding="False"
+        TextOptions.TextFormattingMode="Display"
+        AutomationProperties.Name="Mithu companion">
+
+    <!--
+        The OS window is a fixed transparent canvas (largest size + shadow room) while Mithu is open,
+        and is only shrunk to the notch after the close animation has fully settled.
+        The visible "island" is the NotchSurface; only its outline receives clicks.
+        Content is laid out once at the expanded width and revealed by the morphing clip.
+        UseLayoutRounding is off so sub-pixel motion stays smooth.
+    -->
+    <controls:NotchSurface x:Name="Island"
+                           VerticalAlignment="Top"
+                           Fill="{StaticResource IslandSurfaceBrush}"
+                           MouseWheel="Island_MouseWheel">
+
+        <Grid x:Name="IslandContent" Width="420" Height="356">
+
+            <!-- ===== Header (Compact and Expanded) ===== -->
+            <!-- Centered 372 wide so it is fully visible in Compact (372) and Expanded (420). -->
+            <Grid x:Name="Header" Width="372" Height="60" VerticalAlignment="Top" HorizontalAlignment="Center"
+                  Background="Transparent" MouseLeftButtonDown="DragArea_MouseLeftButtonDown"
+                  MouseMove="Header_MouseMove" MouseLeftButtonUp="Header_MouseLeftButtonUp"
+                  LostMouseCapture="SlideTarget_LostMouseCapture">
+                <Grid.RenderTransform>
+                    <TranslateTransform x:Name="HeaderShift" />
+                </Grid.RenderTransform>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel x:Name="HeaderText" Grid.Column="1" Margin="76,0,6,0" VerticalAlignment="Center"
+                            IsHitTestVisible="False">
+                    <!--
+                        Normally: greeting + status. While a round or break counts down: the time left (large)
+                        and its title ("Write report · Round 1 of 3"). After it finishes: "Round 1 of 3 done" + status.
+                    -->
+                    <TextBlock FontWeight="SemiBold" TextTrimming="CharacterEllipsis" FontFamily="{StaticResource DisplayFont}"
+                               Typography.NumeralAlignment="Tabular">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource MithuTextStyle}">
+                                <Setter Property="controls:EmojiText.Text" Value="{Binding Greeting}" />
+                                <Setter Property="FontSize" Value="14" />
+                                <Style.Triggers>
+                                    <!-- Claude Code at work: its title instead of the greeting -->
+                                    <DataTrigger Binding="{Binding ClaudeCode.IsBusy}" Value="True">
+                                        <Setter Property="controls:EmojiText.Text" Value="{Binding ClaudeCode.HeaderTitle}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Focus.IsActive}" Value="True">
+                                        <Setter Property="controls:EmojiText.Text" Value="{Binding Focus.HeaderText}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Focus.IsCounting}" Value="True">
+                                        <Setter Property="controls:EmojiText.Text" Value="{Binding Focus.RemainingText}" />
+                                        <Setter Property="FontSize" Value="17" />
+                                        <Setter Property="AutomationProperties.Name" Value="Time left" />
+                                    </DataTrigger>
+                                    <!-- A peek with its own title ("Claude Code finished") -->
+                                    <DataTrigger Binding="{Binding ShowPeekTitle}" Value="True">
+                                        <Setter Property="controls:EmojiText.Text" Value="{Binding PeekTitle}" />
+                                        <Setter Property="FontSize" Value="14" />
+                                    </DataTrigger>
+                                    <!-- A reminder went off: it takes the header until answered. -->
+                                    <DataTrigger Binding="{Binding Reminders.HasAlert}" Value="True">
+                                        <Setter Property="controls:EmojiText.Text" Value="{Binding Reminders.AlertTitle}" />
+                                        <Setter Property="FontSize" Value="14" />
+                                        <Setter Property="AutomationProperties.Name" Value="Reminder" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock TextTrimming="CharacterEllipsis" Margin="0,1,0,0" Typography.NumeralAlignment="Tabular"
+                               AutomationProperties.LiveSetting="Polite">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource MithuMutedTextStyle}">
+                                <Setter Property="controls:EmojiText.Text" Value="{Binding StatusText}" />
+                                <Style.Triggers>
+                                    <!-- Claude Code at work: its live line (a focus round or reminder below still wins) -->
+                                    <DataTrigger Binding="{Binding ClaudeCode.IsBusy}" Value="True">
+                                        <Setter Property="controls:EmojiText.Text" Value="{Binding ClaudeCode.HeaderDetail}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Focus.IsCounting}" Value="True">
+                                        <Setter Property="controls:EmojiText.Text" Value="{Binding Focus.CompactSubtitle}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Reminders.HasAlert}" Value="True">
+                                        <Setter Property="controls:EmojiText.Text" Value="{Binding Reminders.AlertDetail}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Reminders.AlertIsUrgent}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource UrgentBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- Clicking the reminder's text opens it. -->
+                <Button Grid.Column="1" Margin="70,6,6,6" Cursor="Hand" Focusable="False" ToolTip="Open this reminder"
+                        Command="{Binding OpenAlertCommand}" AutomationProperties.Name="Open this reminder"
+                        Visibility="{Binding Reminders.HasAlert, Converter={StaticResource BoolToVisibility}}">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="Transparent" />
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <!-- Reminder alert: Snooze 10 min, Done, or close. -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0"
+                            Visibility="{Binding Reminders.HasAlert, Converter={StaticResource BoolToVisibility}}">
+                    <Button x:Name="AlertSnoozeButton" Style="{StaticResource IslandGhostPillButton}" Height="30" Padding="12,0"
+                            Click="AlertSnooze_Click" ToolTip="Remind me again in…" AutomationProperties.Name="Snooze">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Snooze" VerticalAlignment="Center" />
+                            <controls:Icon Glyph="&#xE70D;" FontSize="8"
+                                       VerticalAlignment="Center" Margin="6,1,0,0" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource IslandPillButton}" Content="Done" Margin="6,0,0,0"
+                            Command="{Binding Reminders.AlertDoneCommand}" AutomationProperties.Name="Done" />
+                    <Button Style="{StaticResource IslandIconButton}" Content="&#xE711;" Margin="4,0,0,0"
+                            Command="{Binding DismissPeekCommand}" ToolTip="Later"
+                            AutomationProperties.Name="Close this reminder" />
+                </StackPanel>
+
+                <!-- Peek actions (focus round / break finished): answer right here, or close the peek. -->
+                <StackPanel x:Name="PeekButtons" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
+                            Margin="0,0,12,0">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="{Binding Mode, Converter={StaticResource ShowWhen}, ConverterParameter=Peek}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Reminders.HasAlert}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <Button Style="{StaticResource IslandPillButton}" Content="{Binding Focus.PrimaryText}"
+                            Command="{Binding Focus.PrimaryCommand}"
+                            AutomationProperties.Name="{Binding Focus.PrimaryText}"
+                            Visibility="{Binding PeekIsMessage, Converter={StaticResource HideWhen}, ConverterParameter=True}" />
+                    <Button Style="{StaticResource IslandIconButton}" Content="&#xE711;" Margin="4,0,0,0"
+                            Command="{Binding DismissPeekCommand}" ToolTip="Later"
+                            AutomationProperties.Name="Close this message" />
+                </StackPanel>
+
+                <!-- Arrow controls: ▲ smaller, ▼ bigger. Options menu. -->
+                <StackPanel x:Name="HeaderButtons" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
+                            Margin="0,0,12,0">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="{Binding Mode, Converter={StaticResource HideWhen}, ConverterParameter=Peek}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Reminders.HasAlert}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <Button Style="{StaticResource IslandIconButton}" Content="{Binding Focus.PauseGlyph}"
+                            Command="{Binding Focus.PauseResumeCommand}" Margin="0,0,2,0"
+                            ToolTip="{Binding Focus.PauseLabel}" AutomationProperties.Name="{Binding Focus.PauseLabel}"
+                            Visibility="{Binding ShowHeaderPause, Converter={StaticResource BoolToVisibility}}" />
+                    <Button x:Name="OptionsButton" Style="{StaticResource IslandIconButton}" Content="&#xE712;"
+                            Click="OptionsButton_Click" ToolTip="Options"
+                            AutomationProperties.Name="Options" />
+                    <Button Style="{StaticResource IslandIconButton}" Content="&#xE70E;" Margin="2,0,0,0"
+                            Command="{Binding SmallerCommand}"
+                            ToolTip="Smaller  (Esc · Ctrl+↑ · scroll up)"
+                            AutomationProperties.Name="Make smaller" />
+                    <Button Style="{StaticResource IslandIconButton}" Content="&#xE70D;" Margin="2,0,0,0"
+                            Command="{Binding BiggerCommand}"
+                            ToolTip="Bigger  (Ctrl+↓ · scroll down)"
+                            AutomationProperties.Name="Make bigger" />
+                </StackPanel>
+            </Grid>
+
+            <!-- ===== Face: its own layer so it can travel down out of the notch ===== -->
+            <!-- Positioned at the header's left (centered 372 → starts at 24) + 10 margin. -->
+            <Border x:Name="FaceHost" Width="56" Height="46" Margin="34,7,0,0"
+                    HorizontalAlignment="Left" VerticalAlignment="Top"
+                    Focusable="True" Background="Transparent" Cursor="Hand"
+                    RenderTransformOrigin="0.5,0"
+                    FocusVisualStyle="{StaticResource MithuFocusVisual}"
+                    AutomationProperties.Name="Mithu face. Press Enter to say hi. Use Ctrl+Up or Ctrl+Down to change size."
+                    MouseLeftButtonDown="Face_MouseLeftButtonDown"
+                    MouseMove="Face_MouseMove"
+                    MouseLeftButtonUp="Face_MouseLeftButtonUp"
+                    LostMouseCapture="SlideTarget_LostMouseCapture"
+                    MouseEnter="Face_MouseEnter"
+                    MouseLeave="Face_MouseLeave"
+                    KeyDown="Face_KeyDown">
+                <Border.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform x:Name="FaceScale" />
+                        <TranslateTransform x:Name="FaceShift" />
+                    </TransformGroup>
+                </Border.RenderTransform>
+                <controls:CompanionFaceControl x:Name="Face" Width="56" Height="46" />
+            </Border>
+
+            <!-- ===== Floating bubble: focus progress around the edge (clockwise from the top) ===== -->
+            <!-- Inset by half the stroke so the whole line sits inside the 76×60 bubble. Opacity follows the bubble. -->
+            <Rectangle x:Name="BubbleProgress" Width="73" Height="57" RadiusX="28.5" RadiusY="28.5" Margin="0,1.5,0,0"
+                       HorizontalAlignment="Center" VerticalAlignment="Top" IsHitTestVisible="False" Opacity="0"
+                       Stroke="{StaticResource CyanBrush}" StrokeThickness="2.5" StrokeDashCap="Round"
+                       StrokeDashArray="{Binding Focus.Progress, Converter={StaticResource PillDash}, ConverterParameter='73,57,28.5,2.5'}"
+                       StrokeDashOffset="{Binding Focus.Progress, Converter={StaticResource PillDash}, ConverterParameter='73,57,28.5,2.5'}"
+                       Visibility="{Binding Focus.IsActive, Converter={StaticResource BoolToVisibility}}" />
+
+            <!-- ===== Expanded panel (created lazily on first open) ===== -->
+            <ContentControl x:Name="PanelHost" Margin="0,60,0,0" Height="296" VerticalAlignment="Top"
+                            Focusable="False" Opacity="0">
+                <ContentControl.RenderTransform>
+                    <TranslateTransform x:Name="PanelShift" />
+                </ContentControl.RenderTransform>
+            </ContentControl>
+
+            <!-- ===== Notch: two little eyes peeking out (click to open) ===== -->
+            <Grid x:Name="HiddenLayer" Width="132" Height="24" HorizontalAlignment="Center" VerticalAlignment="Top"
+                  Background="Transparent" Cursor="Hand" Opacity="0"
+                  MouseLeftButtonDown="HiddenLayer_MouseLeftButtonDown"
+                  MouseMove="HiddenLayer_MouseMove"
+                  MouseLeftButtonUp="HiddenLayer_MouseLeftButtonUp"
+                  LostMouseCapture="HiddenLayer_LostMouseCapture"
+                  ToolTip="Click to open · drag sideways to move"
+                  AutomationProperties.Name="Mithu is tucked away. Click or press Ctrl+Shift+Space to open. Drag sideways to move.">
+                <!-- Eyes centered; while a session runs they move left to make room for the progress bar. -->
+                <StackPanel x:Name="NotchEyes" Orientation="Horizontal"
+                            VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+                    <StackPanel.RenderTransform>
+                        <ScaleTransform x:Name="NotchEyesScale" />
+                    </StackPanel.RenderTransform>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="HorizontalAlignment" Value="Center" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Focus.IsActive}" Value="True">
+                                    <Setter Property="HorizontalAlignment" Value="Left" />
+                                    <Setter Property="Margin" Value="20,0,0,0" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <Ellipse Width="7" Height="9" Fill="{StaticResource CyanBrush}" Margin="0,0,9,0" />
+                    <Ellipse Width="7" Height="9" Fill="{StaticResource CyanBrush}" />
+                </StackPanel>
+
+                <!-- Focus progress at a glance: a bar to the right of the eyes fills up as the round goes by. -->
+                <Grid x:Name="NotchProgress" Width="62" Height="3" HorizontalAlignment="Right" VerticalAlignment="Center"
+                      Margin="0,0,20,0" IsHitTestVisible="False"
+                      Visibility="{Binding Focus.IsActive, Converter={StaticResource BoolToVisibility}}">
+                    <Rectangle RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource CardHoverBrush}" />
+                    <!-- Same cyan as the eyes, for focus and breaks alike. -->
+                    <Rectangle RadiusX="1.5" RadiusY="1.5" RenderTransformOrigin="0,0.5"
+                               Fill="{StaticResource CyanBrush}">
+                        <Rectangle.RenderTransform>
+                            <ScaleTransform ScaleX="{Binding Focus.Progress}" />
+                        </Rectangle.RenderTransform>
+                    </Rectangle>
+                </Grid>
+            </Grid>
+        </Grid>
+    </controls:NotchSurface>
+</Window>

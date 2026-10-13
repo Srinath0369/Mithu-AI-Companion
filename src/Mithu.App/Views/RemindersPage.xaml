@@ -1,0 +1,616 @@
+<UserControl x:Class="Mithu.App.Views.RemindersPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:controls="clr-namespace:Mithu.App.Controls"
+             xmlns:vm="clr-namespace:Mithu.App.ViewModels"
+             xmlns:rem="clr-namespace:Mithu.Core.Reminders;assembly=Mithu.Core"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+             d:DesignWidth="392" d:DesignHeight="284">
+
+    <!--
+        Reminders page inside the expanded panel: quick add in plain English, Upcoming / Overdue / Done lists with
+        search and filters, and an editor (presets, date and time, repeat, priority, notes).
+    -->
+    <UserControl.Resources>
+        <!-- Choice chip (tab, preset, repeat). DataContext = ReminderChip. -->
+        <Style x:Key="Chip" TargetType="Button">
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Padding" Value="9,0" />
+            <Setter Property="Margin" Value="0,0,4,5" />
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Background" Value="{StaticResource CardBrush}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource MithuFocusVisual}" />
+            <Setter Property="Command" Value="{Binding SelectCommand}" />
+            <Setter Property="Content" Value="{Binding Label}" />
+            <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="13"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.8" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Background" Value="{StaticResource CyanSoftBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource CyanBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Priority chip: amber for Important, red for Urgent when selected. -->
+        <Style x:Key="PriorityChip" TargetType="Button" BasedOn="{StaticResource Chip}">
+            <Style.Triggers>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsSelected}" Value="True" />
+                        <Condition Binding="{Binding Key}" Value="Important" />
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="{StaticResource WarningSoftBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                </MultiDataTrigger>
+                <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding IsSelected}" Value="True" />
+                        <Condition Binding="{Binding Key}" Value="Urgent" />
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Background" Value="{StaticResource UrgentSoftBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource UrgentBrush}" />
+                </MultiDataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- A reminder in the list: a whole-card button that opens the editor. DataContext = ReminderItem. -->
+        <Style x:Key="ReminderCard" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource MithuFocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="{StaticResource CardBrush}" CornerRadius="12"
+                                BorderBrush="{StaticResource CardRimBrush}" BorderThickness="1" Padding="0,8,6,8">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource CardHoverBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="NavTitle" TargetType="TextBlock">
+            <Setter Property="Margin" Value="38,0,0,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="FontFamily" Value="{StaticResource DisplayFont}" />
+        </Style>
+
+        <Style x:Key="Placeholder" TargetType="TextBlock">
+            <Setter Property="IsHitTestVisible" Value="False" />
+            <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="2,0,0,0" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+
+        <Style x:Key="Section" TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+            <Setter Property="Margin" Value="2,10,0,5" />
+        </Style>
+
+        <Style x:Key="InputBox" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource InputBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource CardRimBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="15" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="11,0" />
+        </Style>
+
+        <Style x:Key="SaveButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource CyanOnBrush}" />
+            <Setter Property="Background" Value="{StaticResource CyanBrush}" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource MithuFocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="18">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.88" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <!-- ================================================================ -->
+        <!-- ===== List ====================================================== -->
+        <!-- ================================================================ -->
+        <Grid x:Name="ListView"
+              Visibility="{Binding Reminders.IsEditing, Converter={StaticResource HideWhen}, ConverterParameter=True}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />  <!-- nav -->
+                <RowDefinition Height="Auto" />  <!-- quick add -->
+                <RowDefinition Height="Auto" />  <!-- search -->
+                <RowDefinition Height="Auto" />  <!-- tabs -->
+                <RowDefinition Height="*" />     <!-- reminders -->
+            </Grid.RowDefinitions>
+
+            <!-- ← Reminders ...... search · filter · + New -->
+            <Grid Height="32">
+                <Button Style="{StaticResource IslandIconButton}" Content="&#xE72B;" HorizontalAlignment="Left"
+                        Command="{Binding GoBackCommand}" ToolTip="Back  (Esc)" AutomationProperties.Name="Back" />
+                <TextBlock Text="Reminders" Style="{StaticResource NavTitle}" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource IslandIconButton}" Content="&#xE721;" Margin="0,0,2,0"
+                            Command="{Binding Reminders.ToggleSearchCommand}" ToolTip="Search reminders"
+                            AutomationProperties.Name="Search reminders" />
+                    <Button x:Name="FilterButton" Height="26" Padding="10,0" FontSize="11.5" Margin="0,0,6,0"
+                            Click="FilterButton_Click" ToolTip="Filter by date or priority" AutomationProperties.Name="Filter">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource IslandGhostPillButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Reminders.HasFilter}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource CyanBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                        <StackPanel Orientation="Horizontal">
+                            <controls:Icon Glyph="&#xE71C;" FontSize="10"
+                                       VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <TextBlock Text="{Binding Reminders.FilterText}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource IslandPillButton}"
+                            Command="{Binding Reminders.NewReminderCommand}" AutomationProperties.Name="New reminder">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:Icon Glyph="&#xE710;" FontSize="10"
+                                       VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <TextBlock Text="New" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Quick add: plain English, live preview of what Enter will create -->
+            <StackPanel Grid.Row="1" Margin="0,8,0,0">
+                <Border x:Name="QuickPill" Height="34" CornerRadius="17" Padding="12,0,4,0"
+                        Background="{StaticResource InputBrush}" BorderBrush="{StaticResource CardRimBrush}" BorderThickness="1">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <controls:Icon Glyph="&#xEA8F;" FontSize="12"
+                                   Foreground="{StaticResource CyanBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBox x:Name="QuickBox" Grid.Column="1" Style="{StaticResource IslandInput}" FontSize="13"
+                                 Text="{Binding Reminders.QuickText, UpdateSourceTrigger=PropertyChanged}" MaxLength="300"
+                                 AutomationProperties.Name="Quick reminder, for example call Mom tomorrow at 6 PM">
+                            <TextBox.InputBindings>
+                                <KeyBinding Key="Enter" Command="{Binding Reminders.QuickAddCommand}" />
+                            </TextBox.InputBindings>
+                        </TextBox>
+                        <TextBlock Grid.Column="1" Text="Call Mom tomorrow at 6 PM…" FontSize="13">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource Placeholder}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=QuickBox}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <Button Grid.Column="2" Style="{StaticResource IslandIconButton}" Content="&#xE724;" Width="26" Height="26"
+                                FontSize="10" Command="{Binding Reminders.QuickAddCommand}" ToolTip="Add  (Enter)"
+                                AutomationProperties.Name="Add reminder"
+                                Visibility="{Binding Reminders.HasQuickPreview, Converter={StaticResource BoolToVisibility}}" />
+                    </Grid>
+                </Border>
+                <TextBlock Text="{Binding Reminders.QuickPreview}" FontSize="11.5" Foreground="{StaticResource CyanBrush}"
+                           Margin="14,4,0,0" TextTrimming="CharacterEllipsis" AutomationProperties.LiveSetting="Polite"
+                           Visibility="{Binding Reminders.HasQuickPreview, Converter={StaticResource BoolToVisibility}}" />
+            </StackPanel>
+
+            <!-- Search (shown by the 🔍 button) -->
+            <Border Grid.Row="2" Margin="0,6,0,0" Style="{StaticResource InputBox}"
+                    Visibility="{Binding Reminders.IsSearchOpen, Converter={StaticResource BoolToVisibility}}">
+                <Grid>
+                    <TextBox x:Name="SearchBox" Style="{StaticResource IslandInput}" FontSize="12.5" VerticalAlignment="Center"
+                             Text="{Binding Reminders.Search, UpdateSourceTrigger=PropertyChanged}"
+                             AutomationProperties.Name="Search reminders" />
+                    <TextBlock Text="Search titles and notes" FontSize="12.5">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource Placeholder}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Text, ElementName=SearchBox}" Value="">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Border>
+
+            <!-- Upcoming · Overdue · Done -->
+            <ItemsControl Grid.Row="3" Margin="0,8,0,1" ItemsSource="{Binding Reminders.Tabs}" Focusable="False"
+                          AutomationProperties.Name="Show">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Style="{StaticResource Chip}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- The reminders -->
+            <Grid Grid.Row="4">
+                <ScrollViewer VerticalScrollBarVisibility="Hidden" Focusable="False">
+                    <ItemsControl ItemsSource="{Binding Reminders.Items}" Focusable="False" AutomationProperties.Name="Reminders">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:ReminderItem}">
+                                <Button Style="{StaticResource ReminderCard}"
+                                        Command="{Binding DataContext.Reminders.EditCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}" AutomationProperties.Name="{Binding Title}"
+                                        MouseRightButtonUp="Card_RightClick">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Priority stripe -->
+                                        <Border Width="3" CornerRadius="1.5" HorizontalAlignment="Center" Margin="0,2">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="Transparent" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Priority}" Value="{x:Static rem:ReminderPriority.Important}">
+                                                            <Setter Property="Background" Value="{StaticResource WarningBrush}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Priority}" Value="{x:Static rem:ReminderPriority.Urgent}">
+                                                            <Setter Property="Background" Value="{StaticResource UrgentBrush}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock controls:EmojiText.Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" MaxWidth="270"
+                                                           TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsDone}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+                                                                    <Setter Property="TextDecorations" Value="Strikethrough" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <controls:Icon Glyph="&#xE8EE;" FontSize="10"
+                                                           Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center"
+                                                           Margin="6,1,0,0" ToolTip="Repeats"
+                                                           Visibility="{Binding IsRepeating, Converter={StaticResource BoolToVisibility}}" />
+                                            </StackPanel>
+                                            <TextBlock FontSize="11.5" Margin="0,2,0,0" TextTrimming="CharacterEllipsis">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsOverdue}" Value="True">
+                                                                <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                                <Run Text="{Binding WhenText, Mode=OneWay}" Foreground="{StaticResource MutedBrush}" />
+                                                <Run Text=" · " />
+                                                <Run Text="{Binding Detail, Mode=OneWay}" />
+                                            </TextBlock>
+                                            <TextBlock Text="{Binding NotesPreview}" FontSize="11.5" Foreground="{StaticResource SubtleTextBrush}"
+                                                       Margin="0,2,0,0" TextTrimming="CharacterEllipsis" MaxWidth="290" HorizontalAlignment="Left"
+                                                       Visibility="{Binding HasNotes, Converter={StaticResource BoolToVisibility}}" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Style="{StaticResource IslandIconButton}" Content="&#xE73E;" Width="28" Height="28"
+                                                    Command="{Binding DataContext.Reminders.CompleteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" ToolTip="Mark as done" AutomationProperties.Name="Mark as done"
+                                                    Visibility="{Binding IsPending, Converter={StaticResource BoolToVisibility}}" />
+                                            <Button Style="{StaticResource IslandIconButton}" Content="&#xE7A7;" Width="28" Height="28"
+                                                    Command="{Binding DataContext.Reminders.ReopenCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" ToolTip="Not done yet" AutomationProperties.Name="Mark as not done"
+                                                    Visibility="{Binding IsDone, Converter={StaticResource BoolToVisibility}}" />
+                                            <Button Style="{StaticResource IslandIconButton}" Content="&#xE712;" Width="28" Height="28"
+                                                    Click="ItemMenu_Click" ToolTip="More" AutomationProperties.Name="More actions" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <TextBlock Text="{Binding Reminders.EmptyText}" Style="{StaticResource CaptionText}" FontSize="12.5"
+                           TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" LineHeight="20"
+                           Visibility="{Binding Reminders.HasItems, Converter={StaticResource HideWhen}, ConverterParameter=True}" />
+
+                <!-- Undo bar after delete / done / skip -->
+                <Border VerticalAlignment="Bottom" Margin="0,0,0,2" Padding="14,4,4,4" CornerRadius="16"
+                        Background="{StaticResource MenuSurfaceBrush}" BorderBrush="{StaticResource IslandRimBrush}" BorderThickness="1"
+                        Visibility="{Binding Reminders.CanUndo, Converter={StaticResource BoolToVisibility}}">
+                    <Grid>
+                        <TextBlock Text="{Binding Reminders.UndoText}" Foreground="{StaticResource TextBrush}" FontSize="12.5" VerticalAlignment="Center" />
+                        <Button Style="{StaticResource IslandPillButton}" Content="Undo" HorizontalAlignment="Right" Height="26"
+                                Command="{Binding Reminders.UndoCommand}" AutomationProperties.Name="Undo" />
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- ================================================================ -->
+        <!-- ===== Editor ==================================================== -->
+        <!-- ================================================================ -->
+        <Grid x:Name="EditorView"
+              Visibility="{Binding Reminders.IsEditing, Converter={StaticResource BoolToVisibility}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- ← Title .......... ⋯ -->
+            <Grid Height="32">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button Style="{StaticResource IslandIconButton}" Content="&#xE72B;"
+                        Command="{Binding GoBackCommand}" ToolTip="Back without saving  (Esc)" AutomationProperties.Name="Back without saving" />
+                <Grid Grid.Column="1" Margin="8,0,6,0">
+                    <TextBox x:Name="TitleBox" Style="{StaticResource IslandInput}" FontSize="15" FontWeight="SemiBold"
+                             FontFamily="{StaticResource DisplayFont}" VerticalAlignment="Center"
+                             Text="{Binding Reminders.EditTitle, UpdateSourceTrigger=PropertyChanged}" MaxLength="200"
+                             AutomationProperties.Name="What to remind you about">
+                        <TextBox.InputBindings>
+                            <KeyBinding Key="Enter" Command="{Binding Reminders.SaveEditCommand}" />
+                        </TextBox.InputBindings>
+                    </TextBox>
+                    <TextBlock Text="What should I remind you about?" FontSize="15" FontWeight="SemiBold">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource Placeholder}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Text, ElementName=TitleBox}" Value="">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+                <Button x:Name="EditorMenuButton" Grid.Column="2" Style="{StaticResource IslandIconButton}" Content="&#xE712;"
+                        Click="EditorMenu_Click" ToolTip="More" AutomationProperties.Name="More actions"
+                        Visibility="{Binding Reminders.IsNew, Converter={StaticResource HideWhen}, ConverterParameter=True}" />
+            </Grid>
+
+            <ScrollViewer x:Name="EditorScroller" Grid.Row="1" VerticalScrollBarVisibility="Hidden" Focusable="False" Margin="0,2,0,0">
+                <StackPanel Margin="2,0,2,4">
+                    <!-- When -->
+                    <TextBlock Text="When" Style="{StaticResource Section}" Margin="2,6,0,5" />
+                    <ItemsControl ItemsSource="{Binding Reminders.Presets}" Focusable="False" AutomationProperties.Name="When">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource Chip}" Click="Preset_Click" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                        <Button x:Name="DateButton" Style="{StaticResource IslandGhostPillButton}" Height="30" Padding="12,0"
+                                FontSize="12.5" Click="DateButton_Click" ToolTip="Pick a day" AutomationProperties.Name="Date">
+                            <StackPanel Orientation="Horizontal">
+                                <controls:Icon Glyph="&#xE787;" FontSize="11"
+                                           VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <TextBlock Text="{Binding Reminders.DateText}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Border Margin="6,0,0,0" Width="104">
+                            <Border.Style>
+                                <Style TargetType="Border" BasedOn="{StaticResource InputBox}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Reminders.TimeIsInvalid}" Value="True">
+                                            <Setter Property="BorderBrush" Value="{StaticResource WarningBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <controls:Icon Glyph="&#xE823;" FontSize="11"
+                                           Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,7,0" />
+                                <TextBox x:Name="TimeBox" Style="{StaticResource IslandInput}" FontSize="12.5" MinWidth="60"
+                                         Text="{Binding Reminders.EditTimeText, UpdateSourceTrigger=PropertyChanged}" MaxLength="10"
+                                         ToolTip="Like 6:30 PM or 18:30" AutomationProperties.Name="Time, like 6:30 PM">
+                                    <TextBox.InputBindings>
+                                        <KeyBinding Key="Enter" Command="{Binding Reminders.SaveEditCommand}" />
+                                    </TextBox.InputBindings>
+                                </TextBox>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <TextBlock Text="{Binding Reminders.WhenPreview}" FontSize="11.5" Margin="4,6,0,0" TextWrapping="Wrap"
+                               AutomationProperties.LiveSetting="Polite">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{StaticResource CyanBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Reminders.WhenIsPast}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Reminders.TimeIsInvalid}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <!-- Repeat -->
+                    <TextBlock Text="Repeat" Style="{StaticResource Section}" />
+                    <ItemsControl ItemsSource="{Binding Reminders.Repeats}" Focusable="False" AutomationProperties.Name="Repeat">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource Chip}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,0"
+                                Visibility="{Binding Reminders.IsCustomRepeat, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Text="Every" Foreground="{StaticResource MutedBrush}" FontSize="12.5" VerticalAlignment="Center" Margin="4,0,8,0" />
+                        <Border Style="{StaticResource InputBox}" Width="56" Padding="10,0">
+                            <TextBox x:Name="EveryBox" Style="{StaticResource IslandInput}" FontSize="12.5" VerticalAlignment="Center"
+                                     TextAlignment="Center" MaxLength="3"
+                                     Text="{Binding Reminders.CustomEveryText, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Repeat every how many" />
+                        </Border>
+                        <Button x:Name="UnitButton" Style="{StaticResource IslandGhostPillButton}" Height="30" Padding="12,0" Margin="6,0,0,0"
+                                FontSize="12.5" Click="UnitButton_Click" AutomationProperties.Name="Repeat unit">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Reminders.CustomUnitText}" VerticalAlignment="Center" />
+                                <controls:Icon Glyph="&#xE70D;" FontSize="9"
+                                           VerticalAlignment="Center" Margin="8,1,0,0" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Priority -->
+                    <TextBlock Text="Priority" Style="{StaticResource Section}" />
+                    <ItemsControl ItemsSource="{Binding Reminders.Priorities}" Focusable="False" AutomationProperties.Name="Priority">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource PriorityChip}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Notes -->
+                    <TextBlock Text="Notes" Style="{StaticResource Section}" Margin="2,5,0,5" />
+                    <Border Background="{StaticResource InputBrush}" BorderBrush="{StaticResource CardRimBrush}" BorderThickness="1"
+                            CornerRadius="12" Padding="11,7">
+                        <Grid>
+                            <TextBox x:Name="NotesBox" Style="{StaticResource IslandInput}" FontSize="12.5" MinHeight="38" MaxHeight="96"
+                                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                     Text="{Binding Reminders.EditNotes, UpdateSourceTrigger=PropertyChanged}" MaxLength="2000"
+                                     AutomationProperties.Name="Notes, optional" />
+                            <TextBlock Text="Add details (optional)" FontSize="12.5" VerticalAlignment="Top">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource Placeholder}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=NotesBox}" Value="">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
+
+                    <Button Style="{StaticResource SaveButton}" Margin="0,12,0,0"
+                            Command="{Binding Reminders.SaveEditCommand}" AutomationProperties.Name="Save reminder">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:Icon Glyph="&#xE73E;" FontSize="11"
+                                       VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBlock VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="Save" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Reminders.IsNew}" Value="True">
+                                                <Setter Property="Text" Value="Set reminder" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Date picker (opens under the date button) -->
+        <Popup x:Name="DatePopup" PlacementTarget="{Binding ElementName=DateButton}" Placement="Bottom" VerticalOffset="4"
+               StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+            <controls:MiniCalendar x:Name="Calendar" />
+        </Popup>
+    </Grid>
+</UserControl>

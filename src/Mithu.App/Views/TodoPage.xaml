@@ -1,0 +1,295 @@
+<UserControl x:Class="Mithu.App.Views.TodoPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Mithu.App.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:Mithu.App.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+             d:DesignWidth="392" d:DesignHeight="284">
+
+    <!--
+        To-do: simple tasks without dates. List chips (All, My tasks, the user's lists), quick add, open tasks
+        (starred first), a folded Done section with Clear, rename in place, ⋯ for move / delete, Undo.
+    -->
+    <UserControl.Resources>
+        <!-- List chip. DataContext = ReminderChip. -->
+        <Style x:Key="Chip" TargetType="Button">
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="Margin" Value="0,0,4,5" />
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Background" Value="{StaticResource CardBrush}" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource MithuFocusVisual}" />
+            <Setter Property="Command" Value="{Binding SelectCommand}" />
+            <Setter Property="Content" Value="{Binding Label}" />
+            <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="13" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.8" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Background" Value="{StaticResource CyanSoftBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource CyanBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="Placeholder" TargetType="TextBlock">
+            <Setter Property="IsHitTestVisible" Value="False" />
+            <Setter Property="Foreground" Value="{StaticResource SubtleTextBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="2,0,0,0" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+
+        <!-- The round tick on the left of a task. -->
+        <Style x:Key="TickButton" TargetType="Button">
+            <Setter Property="Width" Value="22" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource MithuFocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Background="Transparent">
+                            <Ellipse x:Name="Ring" Width="17" Height="17" StrokeThickness="1.6" Stroke="{StaticResource MutedBrush}" />
+                            <controls:Icon x:Name="Tick" Glyph="&#xE73E;" FontSize="8.5" Foreground="{StaticResource CyanOnBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Hidden" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource CyanBrush}" />
+                                <Setter TargetName="Tick" Property="Visibility" Value="Visible" />
+                                <Setter TargetName="Tick" Property="Foreground" Value="{StaticResource CyanBrush}" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding Done}" Value="True">
+                                <Setter TargetName="Ring" Property="Fill" Value="{StaticResource CyanBrush}" />
+                                <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource CyanBrush}" />
+                                <Setter TargetName="Tick" Property="Visibility" Value="Visible" />
+                                <Setter TargetName="Tick" Property="Foreground" Value="{StaticResource CyanOnBrush}" />
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- A task. DataContext = TodoRow. -->
+        <DataTemplate x:Key="TaskRow" DataType="{x:Type vm:TodoRow}">
+            <Border x:Name="Card" Background="{StaticResource CardBrush}" CornerRadius="10" Padding="8,6,4,6" Margin="0,0,0,5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Button Style="{StaticResource TickButton}" VerticalAlignment="Center"
+                            Command="{Binding DataContext.Todos.ToggleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding}" ToolTip="Done" AutomationProperties.Name="{Binding Title, StringFormat=Mark {0} done}" />
+
+                    <!-- The words: click to rename -->
+                    <StackPanel Grid.Column="1" Margin="8,0,4,0" VerticalAlignment="Center">
+                        <Grid>
+                            <TextBlock x:Name="TitleText" controls:EmojiText.Text="{Binding Title}" FontSize="13" TextWrapping="Wrap" Cursor="IBeam"
+                                       Foreground="{StaticResource TextBrush}" MouseLeftButtonUp="Title_Click"
+                                       Visibility="{Binding IsEditing, Converter={StaticResource HideWhen}, ConverterParameter=True}" />
+                            <TextBox Style="{StaticResource IslandInput}" FontSize="13" Text="{Binding EditText, UpdateSourceTrigger=PropertyChanged}"
+                                     MaxLength="200" PreviewKeyDown="EditBox_PreviewKeyDown" LostKeyboardFocus="EditBox_LostFocus"
+                                     IsVisibleChanged="EditBox_IsVisibleChanged" AutomationProperties.Name="Rename task"
+                                     Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}" />
+                        </Grid>
+                        <TextBlock Text="{Binding ListName}" FontSize="10.5" Foreground="{StaticResource SubtleTextBrush}" Margin="0,1,0,0"
+                                   Visibility="{Binding DataContext.Todos.IsAllView, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+
+                    <!-- ★ -->
+                    <Button Grid.Column="2" Width="26" Height="26" FontSize="11" VerticalAlignment="Center"
+                            Command="{Binding DataContext.Todos.StarCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding}" AutomationProperties.Name="Important">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource IslandIconButton}">
+                                <Setter Property="Content" Value="&#xE734;" />
+                                <Setter Property="ToolTip" Value="Mark important" />
+                                <Setter Property="Opacity" Value="0.55" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Important}" Value="True">
+                                        <Setter Property="Content" Value="&#xE735;" />
+                                        <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                                        <Setter Property="ToolTip" Value="Important" />
+                                        <Setter Property="Opacity" Value="1" />
+                                    </DataTrigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Opacity" Value="1" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Grid.Column="3" Style="{StaticResource IslandIconButton}" Content="&#xE712;" Width="26" Height="26" FontSize="11"
+                            VerticalAlignment="Center" Click="TaskMenu_Click" ToolTip="More" AutomationProperties.Name="More actions" />
+                </Grid>
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding Done}" Value="True">
+                    <Setter TargetName="TitleText" Property="Foreground" Value="{StaticResource SubtleTextBrush}" />
+                    <Setter TargetName="TitleText" Property="TextDecorations" Value="Strikethrough" />
+                    <Setter TargetName="Card" Property="Opacity" Value="0.75" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />  <!-- nav -->
+            <RowDefinition Height="Auto" />  <!-- quick add -->
+            <RowDefinition Height="Auto" />  <!-- lists -->
+            <RowDefinition Height="*" />     <!-- tasks -->
+            <RowDefinition Height="Auto" />  <!-- undo -->
+        </Grid.RowDefinitions>
+
+        <!-- ← To-do .......... ⋯  + List -->
+        <Grid Height="32">
+            <Button Style="{StaticResource IslandIconButton}" Content="&#xE72B;" HorizontalAlignment="Left"
+                    Command="{Binding GoBackCommand}" ToolTip="Back  (Esc)" AutomationProperties.Name="Back" />
+            <TextBlock Text="To-do" Margin="38,0,0,0" VerticalAlignment="Center" FontSize="15" FontWeight="SemiBold"
+                       Foreground="{StaticResource TextBrush}" FontFamily="{StaticResource DisplayFont}" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Style="{StaticResource IslandIconButton}" Content="&#xE712;" Margin="0,0,4,0" Click="ListMenu_Click"
+                        ToolTip="This list" AutomationProperties.Name="List actions"
+                        Visibility="{Binding Todos.CanEditList, Converter={StaticResource BoolToVisibility}}" />
+                <Button Style="{StaticResource IslandPillButton}" Click="NewList_Click" AutomationProperties.Name="New list">
+                    <StackPanel Orientation="Horizontal">
+                        <controls:Icon Glyph="&#xE710;" FontSize="10" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <TextBlock Text="List" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- Quick add -->
+        <Border Grid.Row="1" Margin="0,8,0,0" Height="38" CornerRadius="19" Padding="12,0,4,0"
+                Background="{StaticResource InputBrush}" BorderBrush="{StaticResource CardRimBrush}" BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <controls:Icon Glyph="&#xE710;" FontSize="11" Foreground="{StaticResource CyanBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBox x:Name="QuickBox" Grid.Column="1" Style="{StaticResource IslandInput}" FontSize="13" VerticalAlignment="Center"
+                         Text="{Binding Todos.NewTitle, UpdateSourceTrigger=PropertyChanged}" MaxLength="200"
+                         PreviewKeyDown="QuickBox_PreviewKeyDown" AutomationProperties.Name="New task" />
+                <TextBlock Grid.Column="1" Text="{Binding Todos.AddHint}" FontSize="13">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource Placeholder}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Text, ElementName=QuickBox}" Value="">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <Button Grid.Column="2" Style="{StaticResource IslandIconButton}" Content="&#xE724;" Width="28" Height="28"
+                        Command="{Binding Todos.AddCommand}" ToolTip="Add  (Enter)" AutomationProperties.Name="Add task" />
+            </Grid>
+        </Border>
+
+        <!-- Lists -->
+        <ItemsControl Grid.Row="2" Margin="0,8,0,2" ItemsSource="{Binding Todos.ListChips}" Focusable="False" AutomationProperties.Name="Lists">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button Style="{StaticResource Chip}" />
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Tasks -->
+        <Grid Grid.Row="3" Margin="0,2,0,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                <ScrollViewer.Resources>
+                    <Style TargetType="ScrollBar" BasedOn="{StaticResource SlimScrollBar}" />
+                </ScrollViewer.Resources>
+                <StackPanel Margin="0,0,6,6">
+                    <ItemsControl ItemsSource="{Binding Todos.Open}" ItemTemplate="{StaticResource TaskRow}" Focusable="False"
+                                  AutomationProperties.Name="Open tasks" />
+
+                    <!-- Done (folded) -->
+                    <Grid Margin="0,4,0,4" Visibility="{Binding Todos.HasFinished, Converter={StaticResource BoolToVisibility}}">
+                        <Button HorizontalAlignment="Left" Cursor="Hand" Command="{Binding Todos.ToggleDoneCommand}"
+                                AutomationProperties.Name="Show done tasks" FocusVisualStyle="{StaticResource MithuFocusVisual}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <StackPanel Orientation="Horizontal" Background="Transparent">
+                                        <controls:Icon FontSize="9" VerticalAlignment="Center" Margin="2,0,6,0" Foreground="{StaticResource MutedBrush}">
+                                            <controls:Icon.Style>
+                                                <Style TargetType="controls:Icon">
+                                                    <Setter Property="Glyph" Value="&#xE76C;" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Todos.ShowDone}" Value="True">
+                                                            <Setter Property="Glyph" Value="&#xE70D;" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </controls:Icon.Style>
+                                        </controls:Icon>
+                                        <TextBlock Text="{Binding Todos.FinishedHeader}" Style="{StaticResource CaptionText}" FontSize="12" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                        <Button Style="{StaticResource IslandGhostPillButton}" Content="Clear" Height="24" Padding="10,0" FontSize="11.5"
+                                HorizontalAlignment="Right" Command="{Binding Todos.ClearDoneCommand}"
+                                ToolTip="Remove the done tasks (Undo is offered)" AutomationProperties.Name="Clear done tasks"
+                                Visibility="{Binding Todos.ShowDone, Converter={StaticResource BoolToVisibility}}" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding Todos.Finished}" ItemTemplate="{StaticResource TaskRow}" Focusable="False"
+                                  AutomationProperties.Name="Done tasks"
+                                  Visibility="{Binding Todos.ShowDone, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,30"
+                        Visibility="{Binding Todos.HasOpen, Converter={StaticResource HideWhen}, ConverterParameter=True}"
+                        IsHitTestVisible="False">
+                <controls:Icon Glyph="&#xE9D5;" FontSize="20" Foreground="{StaticResource CyanBrush}" HorizontalAlignment="Center" />
+                <TextBlock Text="{Binding Todos.EmptyText}" Style="{StaticResource CaptionText}" FontSize="12.5" Margin="0,8,0,0"
+                           HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="260" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Undo -->
+        <Border Grid.Row="4" Margin="0,6,0,0" Padding="12,6,6,6" CornerRadius="16" Background="{StaticResource CardHoverBrush}"
+                Visibility="{Binding Todos.CanUndo, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+                <TextBlock Text="{Binding Todos.UndoText}" Foreground="{StaticResource TextBrush}" FontSize="12.5" VerticalAlignment="Center" />
+                <Button Style="{StaticResource IslandPillButton}" Content="Undo" HorizontalAlignment="Right" Height="26"
+                        Command="{Binding Todos.UndoCommand}" AutomationProperties.Name="Undo" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

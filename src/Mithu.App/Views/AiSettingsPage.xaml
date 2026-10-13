@@ -1,0 +1,515 @@
+<UserControl x:Class="Mithu.App.Views.AiSettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:app="clr-namespace:Mithu.App"
+             xmlns:controls="clr-namespace:Mithu.App.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:Mithu.App.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+             d:DesignWidth="392" d:DesignHeight="284">
+
+    <!--
+        AI settings (bring your own key): provider, address, key (masked, saved encrypted), model, Test connection,
+        "Let AI read my notes", Turn on / Save / Turn off. First Turn on shows what is sent and where.
+    -->
+    <UserControl.Resources>
+        <Style x:Key="Chip" TargetType="Button">
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Padding" Value="9,0" />
+            <Setter Property="Margin" Value="0,0,4,5" />
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Background" Value="{StaticResource CardBrush}" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource MithuFocusVisual}" />
+            <Setter Property="Command" Value="{Binding SelectCommand}" />
+            <Setter Property="Content" Value="{Binding Label}" />
+            <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="13" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.8" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Background" Value="{StaticResource CyanSoftBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource CyanBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="Section" TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+            <Setter Property="Margin" Value="2,12,0,5" />
+        </Style>
+
+        <Style x:Key="InputBox" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource InputBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource CardRimBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="15" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="12,0" />
+        </Style>
+
+        <Style x:Key="BigButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource CyanOnBrush}" />
+            <Setter Property="Background" Value="{StaticResource CyanBrush}" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="18,0" />
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource MithuFocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="18" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.88" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="BigGhost" TargetType="Button" BasedOn="{StaticResource BigButton}">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="Background" Value="{StaticResource CardHoverBrush}" />
+            <Setter Property="FontWeight" Value="Normal" />
+        </Style>
+
+        <Style x:Key="Bullet" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,0,0,7" />
+            <Setter Property="LineHeight" Value="18" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid DataContext="{Binding}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ← AI settings ............ On / Off -->
+        <Grid Height="32">
+            <Button Style="{StaticResource IslandIconButton}" Content="&#xE72B;" HorizontalAlignment="Left"
+                    Command="{Binding GoBackCommand}" ToolTip="Back  (Esc)" AutomationProperties.Name="Back" />
+            <TextBlock Text="AI settings" Margin="38,0,0,0" VerticalAlignment="Center" FontSize="15" FontWeight="SemiBold"
+                       Foreground="{StaticResource TextBrush}" FontFamily="{StaticResource DisplayFont}" />
+            <Border HorizontalAlignment="Right" VerticalAlignment="Center" CornerRadius="11" Padding="10,3" MaxWidth="240">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Background" Value="{StaticResource CardHoverBrush}" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding AiSettings.IsOn}" Value="True">
+                                <Setter Property="Background" Value="{StaticResource CyanSoftBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <TextBlock Text="{Binding AiSettings.StateText}" FontSize="11" TextTrimming="CharacterEllipsis"
+                           AutomationProperties.Name="AI status">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding AiSettings.IsOn}" Value="True">
+                                    <Setter Property="Foreground" Value="{StaticResource CyanBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Border>
+        </Grid>
+
+        <ScrollViewer x:Name="Scroller" Grid.Row="1" VerticalScrollBarVisibility="Hidden" Focusable="False" Margin="0,2,0,0">
+            <StackPanel Margin="2,0,2,6">
+                <!-- Provider -->
+                <TextBlock Text="Provider" Style="{StaticResource Section}" Margin="2,6,0,5" />
+                <ItemsControl ItemsSource="{Binding AiSettings.Providers}" Focusable="False" AutomationProperties.Name="Provider">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Style="{StaticResource Chip}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Address (local servers, other providers) -->
+                <StackPanel Visibility="{Binding AiSettings.AddressEditable, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="Server address" Style="{StaticResource Section}" />
+                    <Border Style="{StaticResource InputBox}">
+                        <TextBox Style="{StaticResource IslandInput}" FontSize="12.5" VerticalAlignment="Center"
+                                 Text="{Binding AiSettings.BaseUrl, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.Name="Server address, for example http://localhost:11434/v1" />
+                    </Border>
+                </StackPanel>
+
+                <!-- API key -->
+                <StackPanel Visibility="{Binding AiSettings.AcceptsKey, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="API key" Style="{StaticResource Section}" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource InputBox}">
+                            <Grid>
+                                <PasswordBox x:Name="KeyBox" Background="Transparent" BorderThickness="0" FontSize="12.5"
+                                             Foreground="{StaticResource TextBrush}" CaretBrush="{StaticResource CyanBrush}"
+                                             VerticalAlignment="Center" PasswordChanged="KeyBox_PasswordChanged"
+                                             AutomationProperties.Name="Your API key" />
+                                <TextBlock x:Name="KeyPlaceholder" Text="Paste your key" FontSize="12.5" IsHitTestVisible="False"
+                                           Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center" Margin="2,0,0,0" />
+                            </Grid>
+                        </Border>
+                        <Button Grid.Column="1" Style="{StaticResource IslandGhostPillButton}" Content="Remove" Margin="6,0,0,0" Height="30"
+                                Command="{Binding AiSettings.RemoveKeyCommand}" ToolTip="Delete the saved key from this PC"
+                                AutomationProperties.Name="Remove saved key"
+                                Visibility="{Binding AiSettings.HasSavedKey, Converter={StaticResource BoolToVisibility}}" />
+                    </Grid>
+                    <TextBlock Text="{Binding AiSettings.KeyHint}" Style="{StaticResource CaptionText}" Margin="12,5,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <!-- Model -->
+                <TextBlock Text="Model" Style="{StaticResource Section}" />
+                <ItemsControl ItemsSource="{Binding AiSettings.ModelPicks}" Focusable="False" AutomationProperties.Name="Claude models"
+                              Visibility="{Binding AiSettings.IsClaude, Converter={StaticResource BoolToVisibility}}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Style="{StaticResource Chip}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <!-- Model box: type a name, or ▾ to pick from the provider's list -->
+                <Border Padding="12,0,3,0">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource InputBox}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding AiSettings.IsModelListOpen}" Value="True">
+                                    <Setter Property="BorderBrush" Value="{StaticResource CyanBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="ModelBox" Style="{StaticResource IslandInput}" FontSize="12.5" VerticalAlignment="Center"
+                                 Text="{Binding AiSettings.Model, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.Name="Model name" />
+                        <TextBlock Text="Model name — Test connection lists them" FontSize="12.5" IsHitTestVisible="False"
+                                   Foreground="{StaticResource SubtleTextBrush}" VerticalAlignment="Center" Margin="2,0,0,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=ModelBox}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <Button Grid.Column="1" Width="26" Height="26" FontSize="9" Focusable="False"
+                                Command="{Binding AiSettings.ToggleModelListCommand}" ToolTip="Show the provider's models"
+                                AutomationProperties.Name="Show models"
+                                Visibility="{Binding AiSettings.HasAvailableModels, Converter={StaticResource BoolToVisibility}}">
+                            <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource IslandIconButton}">
+                                    <Setter Property="Content" Value="&#xE70D;" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding AiSettings.IsModelListOpen}" Value="True">
+                                            <Setter Property="Content" Value="&#xE70E;" />
+                                            <Setter Property="Foreground" Value="{StaticResource CyanBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <!-- Dropdown: one model per row, the chosen one ticked -->
+                <Border Margin="0,6,0,0" Padding="4" CornerRadius="12" Background="{StaticResource MenuSurfaceBrush}"
+                        BorderBrush="{StaticResource IslandRimBrush}" BorderThickness="1"
+                        Visibility="{Binding AiSettings.IsModelListOpen, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <ScrollViewer x:Name="ModelList" MaxHeight="156" VerticalScrollBarVisibility="Auto" Focusable="False">
+                            <ScrollViewer.Resources>
+                                <Style TargetType="ScrollBar" BasedOn="{StaticResource SlimScrollBar}" />
+                            </ScrollViewer.Resources>
+                            <ItemsControl ItemsSource="{Binding AiSettings.ModelOptions}" Focusable="False" AutomationProperties.Name="Available models">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:ModelOption}">
+                                        <Button Command="{Binding DataContext.AiSettings.ChooseModelCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding Id}" AutomationProperties.Name="{Binding Id}"
+                                                Cursor="Hand" FocusVisualStyle="{StaticResource MithuFocusVisual}">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="Row" Background="Transparent" CornerRadius="8" Padding="10,0,8,0" Height="30">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock x:Name="Name" Text="{Binding Id}" FontSize="12.5" VerticalAlignment="Center"
+                                                                       TextTrimming="CharacterEllipsis" Foreground="{StaticResource TextBrush}" />
+                                                            <controls:Icon x:Name="Tick" Grid.Column="1" Glyph="&#xE73E;" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"
+                                                                       Foreground="{StaticResource CyanBrush}" Visibility="Collapsed" />
+                                                        </Grid>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="Row" Property="Background" Value="{StaticResource MenuHoverBrush}" />
+                                                        </Trigger>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter TargetName="Row" Property="Background" Value="{StaticResource CyanSoftBrush}" />
+                                                            <Setter TargetName="Name" Property="Foreground" Value="{StaticResource CyanBrush}" />
+                                                            <Setter TargetName="Tick" Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                        <TextBlock Text="{Binding AiSettings.ModelListNote}" Style="{StaticResource CaptionText}" Margin="10,6,8,4"
+                                   TextWrapping="Wrap"
+                                   Visibility="{Binding AiSettings.HasModelListNote, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Test connection -->
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <Button Style="{StaticResource IslandGhostPillButton}" Height="30" Padding="14,0"
+                            Command="{Binding AiSettings.TestConnectionCommand}" AutomationProperties.Name="Test connection">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:Icon Glyph="&#xE701;" FontSize="11"
+                                       VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBlock Text="Test connection" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                <TextBlock Text="{Binding AiSettings.TestMessage}" FontSize="12" Margin="4,7,0,0" TextWrapping="Wrap"
+                           AutomationProperties.LiveSetting="Polite"
+                           Visibility="{Binding AiSettings.HasTestMessage, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding AiSettings.TestOk}" Value="True">
+                                    <Setter Property="Foreground" Value="{StaticResource CyanBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding AiSettings.TestOk}" Value="False">
+                                    <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <!-- Important: screenshots need a model that can see images -->
+                <Border Margin="0,12,0,0" Padding="12,10" CornerRadius="12" Background="{StaticResource WarningSoftBrush}"
+                        AutomationProperties.Name="Images need a vision model">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <controls:Icon Glyph="&#xE783;" FontSize="13" Foreground="{StaticResource WarningBrush}" VerticalAlignment="Top" Margin="0,2,10,0" />
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Images need a vision model" Foreground="{StaticResource WarningBrush}"
+                                       FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" />
+                            <TextBlock Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,3,0,0" FontSize="11.5"
+                                       Text="To read screenshots, pick a model that supports images (Claude, GPT-4o, Gemini, LLaVA)." />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Notes access -->
+                <Border Margin="0,14,0,0" Padding="12,10" CornerRadius="12" Background="{StaticResource CardBrush}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Style="{StaticResource IslandCheckBox}" VerticalAlignment="Top" Margin="0,2,10,0"
+                                  IsChecked="{Binding AiSettings.AllowNotes}" AutomationProperties.Name="Let AI read my notes" />
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Let AI read my notes" Foreground="{StaticResource TextBrush}" FontSize="12.5" />
+                            <TextBlock Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" FontSize="11.5"
+                                       Text="{Binding Path=(app:Companion.Name), StringFormat='{}{0} can search your notes to answer you. Only short matching snippets are sent.'}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Desktop control (its own page) -->
+                <Button Margin="0,8,0,0" Cursor="Hand" Command="{Binding OpenDesktopControlCommand}"
+                        AutomationProperties.Name="Desktop control settings" FocusVisualStyle="{StaticResource MithuFocusVisual}">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bg" Background="{StaticResource CardBrush}" CornerRadius="12" Padding="12,10">
+                                <ContentPresenter />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bg" Property="Background" Value="{StaticResource CardHoverBrush}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <controls:Icon Glyph="&#xE7F4;" FontSize="13" Foreground="{StaticResource CyanBrush}" VerticalAlignment="Top" Margin="0,2,10,0" />
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Desktop control" Foreground="{StaticResource TextBrush}" FontSize="12.5" />
+                            <TextBlock Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" FontSize="11.5"
+                                       Text="{Binding Path=(app:Companion.Name), StringFormat='Let {0} open apps, folders and files, find files and set the volume when you ask.'}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                            <TextBlock Text="{Binding DesktopControl.StateText}" FontSize="11.5" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                            <controls:Icon Glyph="&#xE76C;" FontSize="11" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="4,0,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </Button>
+
+                <!-- Mithu looks at the screen when asked -->
+                <Border Margin="0,8,0,0" Padding="12,10" CornerRadius="12" Background="{StaticResource CardBrush}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Style="{StaticResource IslandCheckBox}" VerticalAlignment="Top" Margin="0,2,10,0"
+                                  IsChecked="{Binding AiSettings.LookAtScreen}" AutomationProperties.Name="Let Mithu look at my screen when I ask" />
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="{Binding Path=(app:Companion.Name), StringFormat='Let {0} look at my screen when I ask'}" Foreground="{StaticResource TextBrush}" FontSize="12.5" />
+                            <TextBlock Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" FontSize="11.5"
+                                       Text="{Binding Path=(app:Companion.Name), StringFormat='Say &quot;take a screenshot and explain this&quot; and {0} captures the screen it is on and sends it to your AI provider. Every screenshot shows in the chat.'}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Screenshot shortcut -->
+                <Border Margin="0,8,0,0" Padding="12,10" CornerRadius="12" Background="{StaticResource CardBrush}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Style="{StaticResource IslandCheckBox}" VerticalAlignment="Top" Margin="0,2,10,0"
+                                  IsChecked="{Binding AiSettings.ScreenshotShortcut}" AutomationProperties.Name="Screenshot shortcut" />
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="{Binding Path=(app:Companion.Name), StringFormat='Ctrl+Shift+S shows {0} your screen'}" Foreground="{StaticResource TextBrush}" FontSize="12.5" />
+                            <TextBlock Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="0,2,0,0" FontSize="11.5"
+                                       Text="Pick an area, a window or the whole screen to ask about. A screenshot is only sent when you send the message. Turn this off if another app needs Ctrl+Shift+S (the Screenshot &amp; ask button still works)." />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Turn on / Save / Turn off -->
+                <Button Style="{StaticResource BigButton}" Margin="0,14,0,0" IsEnabled="{Binding AiSettings.CanTurnOn}"
+                        Command="{Binding AiSettings.TurnOnCommand}" AutomationProperties.Name="Turn on AI"
+                        Visibility="{Binding AiSettings.IsOn, Converter={StaticResource HideWhen}, ConverterParameter=True}">
+                    <StackPanel Orientation="Horizontal">
+                        <controls:Icon Glyph="&#xE945;" FontSize="11"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <TextBlock Text="Turn on AI" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+                <Grid Margin="0,14,0,0" Visibility="{Binding AiSettings.IsOn, Converter={StaticResource BoolToVisibility}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Button Style="{StaticResource BigButton}" Content="Save changes" IsEnabled="{Binding AiSettings.CanTurnOn}"
+                            Command="{Binding AiSettings.SaveCommand}" AutomationProperties.Name="Save changes" />
+                    <Button Grid.Column="2" Style="{StaticResource BigGhost}" Content="Turn off"
+                            Command="{Binding AiSettings.TurnOffCommand}" AutomationProperties.Name="Turn off AI" />
+                </Grid>
+
+                <TextBlock Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="4,10,0,0" FontSize="11"
+                           Text="Your key is stored encrypted on this PC and sent only to the provider you chose. Nothing is sent while AI is off." />
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- First Turn on: what is sent and where -->
+        <Border Grid.RowSpan="2" Background="{StaticResource MenuSurfaceBrush}" CornerRadius="16" Padding="18,14"
+                BorderBrush="{StaticResource IslandRimBrush}" BorderThickness="1"
+                Visibility="{Binding AiSettings.ShowConsent, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="Before you turn on AI" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}"
+                           FontFamily="{StaticResource DisplayFont}" Margin="0,0,0,10" />
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" Focusable="False">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource Bullet}">
+                            <Run Text="{Binding Path=(app:Companion.Name), StringFormat='• When you ask {0} something, your message and the chat so far are sent to ', Mode=OneWay}" /><Run
+                                 Text="{Binding AiSettings.Preset.Name, Mode=OneWay}" Foreground="{StaticResource TextBrush}" /><Run
+                                 Text=" using your key." />
+                        </TextBlock>
+                        <TextBlock Style="{StaticResource Bullet}"
+                                   Text="{Binding Path=(app:Companion.Name), StringFormat='• {0} adds the current date and time, so it understands things like “tomorrow at 6”.'}" />
+                        <TextBlock Style="{StaticResource Bullet}"
+                                   Text="• Your notes are only shared if you turn on “Let AI read my notes” — and then only short snippets." />
+                        <TextBlock Style="{StaticResource Bullet}"
+                                   Text="• Your key stays encrypted on this PC. Turn AI off here any time; then nothing is sent." />
+                    </StackPanel>
+                </ScrollViewer>
+                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                    <Button Style="{StaticResource BigGhost}" Content="Not now" Margin="0,0,8,0"
+                            Command="{Binding AiSettings.CancelConsentCommand}" AutomationProperties.Name="Not now" />
+                    <Button Style="{StaticResource BigButton}" Content="I understand, turn on"
+                            Command="{Binding AiSettings.AcceptConsentCommand}" AutomationProperties.Name="I understand, turn on AI" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

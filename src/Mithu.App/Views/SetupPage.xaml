@@ -1,0 +1,387 @@
+<UserControl x:Class="Mithu.App.Views.SetupPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:app="clr-namespace:Mithu.App"
+             xmlns:controls="clr-namespace:Mithu.App.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:Mithu.App.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+             d:DesignWidth="392" d:DesignHeight="250">
+
+    <!--
+        First-run setup: Welcome → Name → AI → Permissions → Done (SetupViewModel). One step at a time; the footer
+        has Skip (first step) or Back, the step count, and Next.
+    -->
+    <UserControl.Resources>
+        <Style x:Key="StepTitle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="FontFamily" Value="{StaticResource DisplayFont}" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style x:Key="StepText" TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+        </Style>
+
+        <!-- Welcome: one feature (icon, title, a line). -->
+        <Style x:Key="Feature" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource CardBrush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+        </Style>
+        <Style x:Key="FeatureTitle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="FeatureText" TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,1,0,0" />
+        </Style>
+
+        <!-- Permissions: a switch row. -->
+        <Style x:Key="OptionCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource CardBrush}" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="12,9" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style x:Key="OptionTitle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="FontSize" Value="12.5" />
+        </Style>
+        <Style x:Key="OptionText" TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Margin" Value="0,2,0,0" />
+        </Style>
+
+        <!-- Name idea chip. -->
+        <Style x:Key="IdeaChip" TargetType="Button">
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Padding" Value="11,0" />
+            <Setter Property="Margin" Value="0,0,5,5" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Background" Value="{StaticResource CardBrush}" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource MithuFocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}" CornerRadius="13" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource CardHoverBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ===== 0 · Welcome ===== -->
+        <Grid Visibility="{Binding Setup.IsWelcome, Converter={StaticResource BoolToVisibility}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <StackPanel Margin="2,2,0,8">
+                <TextBlock Style="{StaticResource StepTitle}" Text="{Binding Path=(app:Companion.Name), StringFormat='Hi! I&#8217;m {0}, your desktop companion.'}" />
+                <TextBlock Style="{StaticResource StepText}" Text="I live at the top of your screen. A few things we can do together:" />
+            </StackPanel>
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Focusable="False">
+                <ScrollViewer.Resources>
+                    <Style TargetType="ScrollBar" BasedOn="{StaticResource SlimScrollBar}" />
+                </ScrollViewer.Resources>
+                <UniformGrid Columns="2" Margin="0,0,0,2">
+                    <Border Style="{StaticResource Feature}">
+                        <StackPanel>
+                            <controls:Icon Glyph="&#xEA8F;" FontSize="13" Foreground="{StaticResource CyanBrush}" Margin="0,0,0,4" />
+                            <TextBlock Text="Notes &amp; reminders" Style="{StaticResource FeatureTitle}" />
+                            <TextBlock Text="Type &#8220;remind me to call Mom at 6&#8221;." Style="{StaticResource FeatureText}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource Feature}">
+                        <StackPanel>
+                            <controls:Icon Glyph="&#xE916;" FontSize="13" Foreground="{StaticResource CyanBrush}" Margin="0,0,0,4" />
+                            <TextBlock Text="Focus timer &amp; to-dos" Style="{StaticResource FeatureTitle}" />
+                            <TextBlock Text="Plan focus rounds and tick off tasks." Style="{StaticResource FeatureText}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource Feature}">
+                        <StackPanel>
+                            <controls:Icon Glyph="&#xE9F9;" FontSize="13" Foreground="{StaticResource CyanBrush}" Margin="0,0,0,4" />
+                            <TextBlock Text="AI chat" Style="{StaticResource FeatureTitle}" />
+                            <TextBlock Text="Ask anything; I can save and plan for you." Style="{StaticResource FeatureText}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource Feature}">
+                        <StackPanel>
+                            <controls:Icon Glyph="&#xE722;" FontSize="13" Foreground="{StaticResource CyanBrush}" Margin="0,0,0,4" />
+                            <TextBlock Text="Screenshot &amp; ask" Style="{StaticResource FeatureTitle}" />
+                            <TextBlock Text="Ctrl+Shift+S: snip, ask, copy text." Style="{StaticResource FeatureText}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource Feature}">
+                        <StackPanel>
+                            <controls:Icon Glyph="&#xE7F4;" FontSize="13" Foreground="{StaticResource CyanBrush}" Margin="0,0,0,4" />
+                            <TextBlock Text="Help on your PC" Style="{StaticResource FeatureTitle}" />
+                            <TextBlock Text="Open apps, find and tidy files." Style="{StaticResource FeatureText}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource Feature}">
+                        <StackPanel>
+                            <controls:Icon Glyph="&#xE945;" FontSize="13" Foreground="{StaticResource CyanBrush}" Margin="0,0,0,4" />
+                            <TextBlock Text="Claude Code status" Style="{StaticResource FeatureTitle}" />
+                            <TextBlock Text="See what it is doing, live." Style="{StaticResource FeatureText}" />
+                        </StackPanel>
+                    </Border>
+                </UniformGrid>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- ===== 1 · Name ===== -->
+        <StackPanel Margin="2,2,0,0" Visibility="{Binding Setup.IsName, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Style="{StaticResource StepTitle}" Text="What would you like to call me?" />
+            <TextBlock Style="{StaticResource StepText}" Text="Pick any name. You can change it later from the ⋯ menu." />
+            <Border x:Name="NamePill" Background="{StaticResource CardBrush}" BorderBrush="{StaticResource CyanBrush}" BorderThickness="1"
+                    CornerRadius="14" Margin="0,12,0,0" Padding="12,0" Height="40">
+                <TextBox x:Name="NameBox" Style="{StaticResource IslandInput}" FontSize="15" VerticalAlignment="Center"
+                         Text="{Binding Setup.NameDraft, UpdateSourceTrigger=PropertyChanged}" MaxLength="40"
+                         AutomationProperties.Name="Companion name">
+                    <TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding Setup.NextCommand}" />
+                    </TextBox.InputBindings>
+                </TextBox>
+            </Border>
+            <ItemsControl ItemsSource="{Binding Setup.NameIdeas}" Margin="0,10,0,0" Focusable="False">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Style="{StaticResource IdeaChip}" Content="{Binding}" AutomationProperties.Name="{Binding}"
+                                Command="{Binding DataContext.Setup.PickNameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock controls:EmojiText.Text="{Binding Setup.Preview}" Margin="2,10,0,0" FontSize="18" FontWeight="SemiBold"
+                       FontFamily="{StaticResource DisplayFont}" Foreground="{StaticResource CyanBrush}" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+
+        <!-- ===== 2 · AI ===== -->
+        <StackPanel Margin="2,2,0,0" Visibility="{Binding Setup.IsAi, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Style="{StaticResource StepTitle}" Text="Bring your own AI" />
+            <TextBlock Style="{StaticResource StepText}"
+                       Text="With AI I can chat, set reminders from plain words, explain screenshots and help on your PC. Use a key from Claude, OpenAI, Gemini, OpenRouter or Groq, or a free model on this PC with Ollama or LM Studio." />
+
+            <!-- Not set up yet -->
+            <StackPanel Margin="0,12,0,0" Visibility="{Binding Setup.IsAiOn, Converter={StaticResource HideWhen}, ConverterParameter=True}">
+                <Button Style="{StaticResource IslandPillButton}" Height="36" HorizontalAlignment="Left" Padding="16,0"
+                        Command="{Binding Setup.SetUpAiCommand}" AutomationProperties.Name="Set up AI">
+                    <StackPanel Orientation="Horizontal">
+                        <controls:Icon Glyph="&#xE8D7;" FontSize="12" VerticalAlignment="Center" Margin="0,0,7,0" />
+                        <TextBlock Text="Set up AI" VerticalAlignment="Center" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Button>
+                <TextBlock Style="{StaticResource StepText}" Margin="2,8,0,0"
+                           Text="Your key stays encrypted on this PC. No AI? Notes, reminders, to-dos and focus all work without it." />
+            </StackPanel>
+
+            <!-- Important: screenshots need a vision model -->
+            <Border Margin="0,10,0,0" Padding="10,8" CornerRadius="10" Background="{StaticResource WarningSoftBrush}">
+                <TextBlock TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource WarningBrush}">
+                    <Run Text="Important:" FontWeight="SemiBold" /><Run Text=" screenshots need a model that supports images." />
+                </TextBlock>
+            </Border>
+
+            <!-- Done -->
+            <Border Margin="0,12,0,0" Background="{StaticResource CyanSoftBrush}" CornerRadius="12" Padding="12,10"
+                    Visibility="{Binding Setup.IsAiOn, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel Orientation="Horizontal">
+                    <controls:Icon Glyph="&#xE73E;" FontSize="13" Foreground="{StaticResource CyanBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock Text="{Binding Setup.AiStateText}" Foreground="{StaticResource CyanBrush}" FontSize="12.5" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- ===== 3 · Permissions ===== -->
+        <Grid Visibility="{Binding Setup.IsPermissions, Converter={StaticResource BoolToVisibility}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <StackPanel Margin="2,2,0,8">
+                <TextBlock Style="{StaticResource StepTitle}" Text="Permissions" />
+                <TextBlock Style="{StaticResource StepText}" Text="All on to start with. Switch off anything you'd rather not; you can change them later." />
+            </StackPanel>
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Focusable="False">
+                <ScrollViewer.Resources>
+                    <Style TargetType="ScrollBar" BasedOn="{StaticResource SlimScrollBar}" />
+                </ScrollViewer.Resources>
+                <StackPanel Margin="0,0,6,2">
+                    <Border Style="{StaticResource OptionCard}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Style="{StaticResource IslandCheckBox}" VerticalAlignment="Top" Margin="0,2,10,0"
+                                      IsChecked="{Binding Setup.DesktopControl}" AutomationProperties.Name="Use apps and files on this PC" />
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Use apps &amp; files on this PC" Style="{StaticResource OptionTitle}" />
+                                <TextBlock Style="{StaticResource OptionText}" Text="{Binding Setup.FoldersText, StringFormat='Open apps, find, open and tidy files in {0}, set the volume. Moving, renaming and closing windows still ask you each time.'}" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border Style="{StaticResource OptionCard}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Style="{StaticResource IslandCheckBox}" VerticalAlignment="Top" Margin="0,2,10,0"
+                                      IsChecked="{Binding Setup.ReadNotes}" AutomationProperties.Name="Let AI read my notes" />
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Let AI read my notes" Style="{StaticResource OptionTitle}" />
+                                <TextBlock Style="{StaticResource OptionText}" Text="To answer questions about them. Only short matching snippets are sent." />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border Style="{StaticResource OptionCard}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Style="{StaticResource IslandCheckBox}" VerticalAlignment="Top" Margin="0,2,10,0"
+                                      IsChecked="{Binding Setup.LookAtScreen}" AutomationProperties.Name="Look at my screen when I ask" />
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Look at my screen when I ask" Style="{StaticResource OptionTitle}" />
+                                <TextBlock Style="{StaticResource OptionText}" Text="&#8220;What's this error?&#8221; takes a screenshot and sends it to your AI. It always shows in the chat. Needs a model that supports images." />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border Style="{StaticResource OptionCard}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Style="{StaticResource IslandCheckBox}" VerticalAlignment="Top" Margin="0,2,10,0"
+                                      IsChecked="{Binding Setup.ReadClipboard}" AutomationProperties.Name="Read what I copy" />
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Read what I copy" Style="{StaticResource OptionTitle}" />
+                                <TextBlock Style="{StaticResource OptionText}" Text="Only when you ask (&#8220;summarize what I copied&#8221;). Copied text can be a password: switch off if that worries you." />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border Style="{StaticResource OptionCard}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Style="{StaticResource IslandCheckBox}" VerticalAlignment="Top" Margin="0,2,10,0"
+                                      IsChecked="{Binding Setup.ScreenshotShortcut}" AutomationProperties.Name="Screenshot shortcut" />
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Screenshot shortcut (Ctrl+Shift+S)" Style="{StaticResource OptionTitle}" />
+                                <TextBlock Style="{StaticResource OptionText}" Text="Snip part of the screen to ask about it or copy its text." />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border Style="{StaticResource OptionCard}" Visibility="{Binding Setup.HasClaudeCode, Converter={StaticResource BoolToVisibility}}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Style="{StaticResource IslandCheckBox}" VerticalAlignment="Top" Margin="0,2,10,0"
+                                      IsChecked="{Binding Setup.ClaudeCode}" AutomationProperties.Name="Show what Claude Code is doing" />
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Show what Claude Code is doing" Style="{StaticResource OptionTitle}" />
+                                <TextBlock Style="{StaticResource OptionText}" Text="Adds small status hooks to Claude Code's settings (your own hooks stay). Live status, and a ping when it finishes or needs you." />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border Style="{StaticResource OptionCard}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Style="{StaticResource IslandCheckBox}" VerticalAlignment="Top" Margin="0,2,10,0"
+                                      IsChecked="{Binding Setup.StartWithWindows}" AutomationProperties.Name="Start with Windows" />
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Start with Windows" Style="{StaticResource OptionTitle}" />
+                                <TextBlock Style="{StaticResource OptionText}" Text="So reminders and the focus timer are always there." />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- ===== 4 · Done ===== -->
+        <StackPanel Margin="2,2,0,0" Visibility="{Binding Setup.IsDone, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Style="{StaticResource StepTitle}" controls:EmojiText.Text="{Binding Path=(app:Companion.Name), StringFormat='All set! {0} is ready 🎉'}" />
+            <TextBlock Style="{StaticResource StepText}" Text="Three quick tips:" Margin="0,4,0,8" />
+            <Border Style="{StaticResource OptionCard}">
+                <TextBlock Style="{StaticResource OptionTitle}" TextWrapping="Wrap">
+                    <Run Text="Ctrl+Shift+Space" Foreground="{StaticResource CyanBrush}" FontWeight="SemiBold" /><Run Text=" shows or hides me from anywhere." />
+                </TextBlock>
+            </Border>
+            <Border Style="{StaticResource OptionCard}">
+                <TextBlock Style="{StaticResource OptionTitle}" TextWrapping="Wrap"
+                           Text="Click the notch at the top of the screen to open me; drag it sideways to move me." />
+            </Border>
+            <Border Style="{StaticResource OptionCard}">
+                <TextBlock Style="{StaticResource OptionTitle}" TextWrapping="Wrap"
+                           Text="Type in the box on Home: a note, &#8220;remind me to…&#8221;, or a question." />
+            </Border>
+        </StackPanel>
+
+        <!-- ===== Footer: Skip / Back · step · Next ===== -->
+        <Grid Grid.Row="1" Margin="0,8,0,0">
+            <Button Style="{StaticResource IslandGhostPillButton}" Content="Skip setup" Height="32" Padding="14,0" HorizontalAlignment="Left"
+                    Command="{Binding Setup.SkipCommand}" AutomationProperties.Name="Skip setup"
+                    Visibility="{Binding Setup.IsWelcome, Converter={StaticResource BoolToVisibility}}" />
+            <Button Style="{StaticResource IslandGhostPillButton}" Height="32" Padding="12,0" HorizontalAlignment="Left"
+                    Command="{Binding Setup.BackCommand}" AutomationProperties.Name="Previous step"
+                    Visibility="{Binding Setup.CanGoBack, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel Orientation="Horizontal">
+                    <controls:Icon Glyph="&#xE72B;" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0" />
+                    <TextBlock Text="Back" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <TextBlock Text="{Binding Setup.StepText}" Style="{StaticResource CaptionText}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <Button x:Name="NextButton" Style="{StaticResource IslandPillButton}" Height="32" Padding="18,0" HorizontalAlignment="Right"
+                    Command="{Binding Setup.NextCommand}" AutomationProperties.Name="{Binding Setup.NextText}">
+                <TextBlock Text="{Binding Setup.NextText}" FontWeight="SemiBold" />
+            </Button>
+        </Grid>
+    </Grid>
+</UserControl>
